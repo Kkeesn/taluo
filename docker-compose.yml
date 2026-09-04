@@ -1,0 +1,21 @@
+services:
+  taluo:
+    build: .
+    image: taluo:local
+    container_name: taluo
+    restart: unless-stopped
+    # ⚠️  不要把 .env 写进仓库！本地 docker compose up 会自动读取当前目录的 .env 注入容器进程 env
+    #       腾讯云托管 / CCR 那边不要带这个文件，靠控制台的"环境变量"页填写 ZHIPU_API_KEY
+    env_file:
+      - .env
+    environment:
+      # 云托管平台会覆盖 PORT，本地固定 5000 方便连
+      - PORT=5000
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;r=urllib.request.urlopen('http://127.0.0.1:5000/healthz',timeout=3);sys.exit(0 if r.status==200 else 1)"]
+      interval: 45s
+      timeout: 6s
+      retries: 5
+      start_period: 15s

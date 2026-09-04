@@ -1,0 +1,25 @@
+# 本地调试 / 敏感文件
+.venv/
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs / run dumps (我们在 debug 时生成的 _stderr.log / _sse_output.log 等)
+_*.log
+_*.json
+
+# Docker
+.dockerignore
+Dockerfile.local
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+.trae/
+.DS_Store
