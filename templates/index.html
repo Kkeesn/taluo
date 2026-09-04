@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1a0f2e" />
+<title>塔罗 · AI 解读</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">✦</div>
+      <div>
+        <h1>塔罗 · AI 解读</h1>
+        <p class="sub">GLM 大模型 · 78 张完整牌库 · 多牌阵多模型</p>
+      </div>
+    </div>
+    <div class="disclaimer">
+      本页面仅为心理隐喻娱乐，不可作为重大决策依据
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- 左: 提问面板 -->
+    <section class="panel form-panel">
+      <h2>🔮 来问问塔罗吧</h2>
+
+      <div class="field">
+        <label>你想算什么牌阵？</label>
+        <div id="spread-grid" class="spread-grid"></div>
+      </div>
+
+      <div class="field">
+        <label>选一个解读模型</label>
+        <select id="model-select" class="select"></select>
+      </div>
+
+      <div class="field">
+        <label>你想问的问题 <span class="hint">（背景越具体，解读越准）</span></label>
+        <textarea id="question" rows="4" maxlength="500"
+          placeholder="例如：我和喜欢的人最近冷战，要不要我主动发消息打破僵局？"></textarea>
+        <div class="counter"><span id="q-count">0</span>/500</div>
+      </div>
+
+      <button id="draw-btn" class="primary-btn">🎴 洗牌 · 抽牌</button>
+      <button id="reset-btn" class="ghost-btn" hidden>↻ 重来一次</button>
+
+      <div id="status" class="status"></div>
+    </section>
+
+    <!-- 中: 抽牌区 -->
+    <section class="panel cards-panel">
+      <h2 id="cards-title">🎴 请先选择牌阵并抽牌</h2>
+      <div id="cards-area" class="cards-area"></div>
+      <div id="deck-slot" class="deck-slot" hidden>
+        <div class="deck">
+          <div class="card-back"></div>
+        </div>
+        <div class="deck-tip">剩余 <b id="deck-left">78</b> 张</div>
+      </div>
+    </section>
+
+    <!-- 右: 解读区 -->
+    <section class="panel read-panel">
+      <h2>📜 塔罗解读</h2>
+      <div id="reading" class="reading-placeholder">
+        <div class="placeholder">
+          <div class="orb"></div>
+          <p>抽好牌后，点下方按钮让 AI 为你解读</p>
+          <button id="read-btn" class="primary-btn" disabled disabled-state>✨ 请先抽牌</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div>塔罗牌图：本地资源 / 模型接口：智谱 AI / 部署：Zeabur / 代码：GitHub</div>
+  </footer>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
