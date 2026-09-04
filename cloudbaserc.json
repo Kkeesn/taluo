@@ -1,0 +1,26 @@
+{
+  "envId": "base-d1gxmzgqv9f560fc4",
+  "functionRoot": "./",
+  "functions": [
+    {
+      "name": "taluo",
+      "type": "HTTP",
+      "runtime": "Python3.10",
+      "timeout": 300,
+      "memorySize": 256,
+      "dir": "pkg",
+      "public": true,
+      "ignore": [
+        ".git/**",
+        ".venv/**",
+        "venv/**",
+        "__pycache__/**",
+        "*.pyc",
+        ".env",
+        "*.log",
+        "_*.json",
+        ".github/**"
+      ]
+    }
+  ]
+}

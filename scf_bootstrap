@@ -1,2 +1,17 @@
 #!/bin/bash
-/var/lang/python310/bin/python3.10 -u app.py
+# ==========================================================================
+#  腾讯云 CloudBase · HTTP 云函数 启动脚本
+#  - 运行环境: Python 3.10 (/var/lang/python310 官方路径)
+#  - WSGI 服务: waitress (与 Docker 版 CloudRun 完全一致，SSE 流式稳定)
+#  - 监听端口: 平台注入 $PORT（控制台显示 9000），缺省回退 9000
+#  - thread/connection/timeout 参数: 适配 AI 流式解读长连接
+# ==========================================================================
+PY=/var/lang/python310/bin/python3.10
+PORT=${PORT:-9000}
+exec $PY -m waitress \
+    --host=0.0.0.0 \
+    --port=$PORT \
+    --threads=32 \
+    --connection-limit=64 \
+    --channel-timeout=260 \
+    app:app

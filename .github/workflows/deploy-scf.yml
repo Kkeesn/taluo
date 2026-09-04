@@ -1,0 +1,130 @@
+name: Deploy CloudBase HTTP 云函数 (taluo)
+
+# 触发:
+#   - push 到 main 且改动了函数代码/配置
+#   - Actions 页面手动 Run workflow
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app.py'
+      - 'requirements.txt'
+      - 'scf_bootstrap'
+      - 'static/**'
+      - 'templates/**'
+      - 'cloudbaserc.json'
+      - '.github/workflows/deploy-scf.yml'
+  workflow_dispatch:
+
+# ============================================================================
+# 需要在 GitHub → Settings → Secrets and variables → Actions → New secret 配置 3 项：
+#
+#   TCB_API_ID     CloudBase「API 访问授权」的 Key ID（不是腾讯云 CAM SecretId！）
+#   TCB_API_KEY    上面新建密钥时配套的 Key Secret（只显示一次，丢了就重建一对）
+#                  获取: CloudBase 控制台 → 环境 → 环境设置 → 登录授权 → API 访问授权 → 新建密钥
+#                  文档: https://docs.cloudbase.net/http-api/basic/access-token
+#
+#   ZHIPU_API_KEY  智谱 API Key。CI 只在运行时写进函数环境变量，不会打印、不进 git。
+#
+# 环境 ID 不是密钥，已写在 cloudbaserc.json (envId)，无需再配 Secret。
+# ============================================================================
+
+jobs:
+  deploy-scf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10（与 SCF 运行时一致，保证装到 Linux/cp310 依赖）
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install CloudBase CLI
+        run: |
+          npm install -g @cloudbase/cli
+          tcb --version
+
+      # ------------------------------------------------------------------
+      # 组装部署包 pkg/：应用代码 + 静态资源 + 「Linux 版依赖」
+      # 注意: Python HTTP 云函数不会在云端跑 pip（installDependency 仅支持 Node），
+      #       必须把依赖直接装进代码包；必须在 Linux 上装（pydantic-core/jiter
+      #       含编译产物，Windows 装出的 .pyd 在 SCF Linux 上无法加载）。
+      # ------------------------------------------------------------------
+      - name: Assemble package (pkg/) with Linux deps
+        run: |
+          set -euo pipefail
+          rm -rf pkg && mkdir -p pkg
+          cp app.py requirements.txt scf_bootstrap pkg/
+          cp -r static templates pkg/
+
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir --target pkg -r requirements.txt
+
+          # scf_bootstrap 必须是 LF 换行且可执行
+          sed -i 's/\r$//' pkg/scf_bootstrap
+          chmod +x pkg/scf_bootstrap
+
+          echo "----- pkg/ 顶层 -----"
+          ls -1 pkg | head -40
+          echo "Major: $(ls pkg/static/card/Major | wc -l) 张"
+          echo "Minor cups/wands/swords/pentacles: \
+$(ls pkg/static/card/Minor/cups | wc -l)/$(ls pkg/static/card/Minor/wands | wc -l)/\
+$(ls pkg/static/card/Minor/swords | wc -l)/$(ls pkg/static/card/Minor/pentacles | wc -l) 张"
+          test -f pkg/app.py && test -f pkg/scf_bootstrap && test -d pkg/flask && \
+            echo "✅ 打包自检通过 (app.py / scf_bootstrap / flask 依赖均在)"
+
+      # ------------------------------------------------------------------
+      # 把 ZHIPU_API_KEY 注入本次部署用的 cloudbaserc.json（仅 runner 内存，不回写 git）
+      # ------------------------------------------------------------------
+      - name: Inject ZHIPU_API_KEY (runtime only)
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          key = os.environ.get('ZHIPU_API_KEY', '').strip()
+          if not key:
+              raise SystemExit('❌ 缺少 GitHub Secret: ZHIPU_API_KEY')
+          with open('cloudbaserc.json', 'r', encoding='utf-8') as f:
+              cfg = json.load(f)
+          fn = cfg['functions'][0]
+          fn.setdefault('envVariables', {})['ZHIPU_API_KEY'] = key
+          with open('cloudbaserc.json', 'w', encoding='utf-8') as f:
+              json.dump(cfg, f, ensure_ascii=False, indent=2)
+              f.write('\n')
+          print('✅ 已将 ZHIPU_API_KEY 写入函数环境变量（明文不打印）')
+          PY
+
+      # ------------------------------------------------------------------
+      # 非交互登录 + 部署（cloudbaserc.json 里 dir=pkg、envId、type=HTTP 都已配好）
+      # ------------------------------------------------------------------
+      - name: Login & Deploy
+        env:
+          TCB_API_ID: ${{ secrets.TCB_API_ID }}
+          TCB_API_KEY: ${{ secrets.TCB_API_KEY }}
+        run: |
+          set -euo pipefail
+          : "${TCB_API_ID:?缺少 GitHub Secret: TCB_API_ID}"
+          : "${TCB_API_KEY:?缺少 GitHub Secret: TCB_API_KEY}"
+          tcb login --apiKeyId "$TCB_API_ID" --apiKey "$TCB_API_KEY"
+          tcb fn deploy taluo --force --yes
+
+      - name: 部署后检查清单
+        run: |
+          echo "✅ 已部署 HTTP 云函数 taluo"
+          echo ""
+          echo "验证（<URL> 在 CloudBase 控制台 → 云函数 → taluo → 触发管理 → HTTP 访问路径）:"
+          echo "  curl -i https://<URL>/healthz   # 期望 ok:true cards:78 has_key:true"
+          echo "  浏览器打开 https://<URL>/        # 直接渲染首页，不是下载 html"
+          echo ""
+          echo "若 has_key:false → 检查函数环境变量 ZHIPU_API_KEY；若解读超时 → 函数配置执行超时设为 300s"
