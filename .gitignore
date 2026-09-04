@@ -1,0 +1,21 @@
+﻿# Python 虚拟环境
+.venv/
+venv/
+env/
+
+# 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
