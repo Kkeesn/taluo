@@ -168,28 +168,38 @@ def serve_card(rel: str):
 @app.get("/")
 def index():
     # 手机端浏览器（尤其是微信内嵌 WebView / iOS Safari 老版）遇到缺 charset 的 text/html
-    # 有时会按 application/octet-stream 误判 → 触发"下载一个 html 文件"。显式指定 MIME + charset。
+    # 有时会按 application/octet-stream 误判 → 触发"下载一个 html 文件"。
+    # content_type= 是 Werkzeug 官方推荐的唯一入口（比 headers={"Content-Type":…} 更稳），
+    # 再加 nosniff 禁止任何中间层做 MIME 嗅探改写。
     html = render_template("index.html")
-    return Response(html, headers={"Content-Type": "text/html; charset=utf-8"})
+    resp = Response(html, content_type="text/html; charset=utf-8")
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @app.get("/healthz")
 def healthz():
-    return jsonify({
+    resp = jsonify({
         "ok": True,
         "cards": len(CARDS),
         "has_key": bool(os.getenv("ZHIPU_API_KEY")),
     })
+    resp.content_type = "application/json; charset=utf-8"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @app.get("/api/config")
 def api_config():
     """前端启动时拉取: 模型列表 + 牌阵列表 + 牌库(可以用来前端洗牌)"""
-    return jsonify({
+    resp = jsonify({
         "cards": CARDS,
         "spreads": SPREADS,
         "models": MODELS,
     })
+    resp.content_type = "application/json; charset=utf-8"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 # ============= 解读接口 =============
@@ -232,22 +242,27 @@ def _sse_error(msg: str):
     def gen():
         yield "data: " + json.dumps({"ok": False, "error": msg}, ensure_ascii=False) + "\n\n"
         yield "data: " + json.dumps({"ok": True, "done": True}, ensure_ascii=False) + "\n\n"
+    # ⚠ 注意：严禁同时传 mimetype= 和 headers 中的 Content-Type，也不要传 mimetype。
+    #   Werkzeug 的 mimetype setter 会覆盖掉带 charset 的 Content-Type，
+    #   导致 CloudBase/Zeabur 反向代理判定 SSE 格式违规 → 500。
     return Response(
         stream_with_context(gen()),
+        content_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
             "X-Accel-Buffering": "no",
-            "Content-Type": "text/event-stream; charset=utf-8",
+            "X-Content-Type-Options": "nosniff",
         },
-        mimetype="text/event-stream",
     )
 
 
 def _sse_ok_headers() -> Dict[str, str]:
+    # ⚠ 不要在这里放 Content-Type：统一在 Response(content_type=…) 里设置，
+    #   避免和 mimetype= / content_type= 参数冲突导致 charset 丢失。
     return {
         "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
         "X-Accel-Buffering": "no",
-        "Content-Type": "text/event-stream; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
     }
 
 
@@ -363,11 +378,12 @@ def api_interpret():
     print(f"[interpret] spread={spread_id} model={model_id} q={question[:24]} cards={[c['name'] for c in cards_arg]}", flush=True)
     # SSE 流式响应必须：
     # 1) stream_with_context: 保留请求上下文直到生成器耗尽（WSGI/Waitress/Zeabur 需要）
-    # 2) 加 headers 禁止任何中间层/代理/nginx buffer，否则前端会看到"一直不输出直到最后一次性吐"
+    # 2) content_type 参数显式带 charset（不要用 mimetype=，它会覆盖掉 charset！）
+    # 3) 加 headers 禁止任何中间层/代理/nginx buffer，否则前端会看到"一直不输出直到最后一次性吐"
     return Response(
         stream_with_context(_stream_glm(user_msg, model_id)),
+        content_type="text/event-stream; charset=utf-8",
         headers=_sse_ok_headers(),
-        mimetype="text/event-stream",
     )
 
 
