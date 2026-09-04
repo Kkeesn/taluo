@@ -19,11 +19,10 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 再拷代码 + 静态资源 + 牌库 (card/ 里 78 张图)
+# 再拷代码 + 静态资源（static/ 里含 css/ + js/ + card/ 共 78 张牌图）+ 模板
 COPY app.py Procfile ./
 COPY templates/   ./templates/
 COPY static/      ./static/
-COPY card/        ./card/
 
 # 腾讯云云托管会在平台侧注入 PORT; 本地没给就默认 5000
 ENV PORT=5000

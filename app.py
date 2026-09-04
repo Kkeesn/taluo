@@ -17,15 +17,17 @@ from pathlib import Path
 from typing import Dict, List
 
 from dotenv import load_dotenv
-from flask import Flask, Response, jsonify, render_template, request, send_from_directory, stream_with_context
+from flask import Flask, Response, jsonify, render_template, request, stream_with_context
 from openai import OpenAI
 
 load_dotenv()
 
 ROOT = Path(__file__).resolve().parent
-CARD_DIR = ROOT / "card"
 STATIC_DIR = ROOT / "static"
 TEMPLATE_DIR = ROOT / "templates"
+# 牌库已按 Flask 规范放在 static/card/（大阿尔卡那 Major/ + 小阿尔卡那 Minor/）
+# Flask 内置静态视图直接处理 /static/card/**/*.jpeg，无需自定义路由
+CARD_DIR = STATIC_DIR / "card"
 
 # ============= 牌库: 扫描 card 目录 =============
 def scan_cards() -> List[Dict]:
@@ -129,9 +131,10 @@ MODELS = [
 
 
 # ============= 后端初始化 =============
-# 静态资源两条挂载:
-#   /static/css/*, /static/js/*  -> static/ 目录 (Flask内置)
-#   /static/card/*              -> card/   目录 (自定义路由, 牌图不用挪动位置)
+# 静态资源一条挂载 (Flask 标准):
+#   /static/css/*, /static/js/*, /static/card/*  -> static/ 目录 (Flask 内置静态视图)
+# 牌库目录 static/card/Major/** + static/card/Minor/{cups,wands,swords,pentacles}/**
+# 由 Flask 默认的 send_static_file 直接服务，不再需要自定义路由。
 app = Flask(
     __name__,
     static_folder=str(STATIC_DIR),
@@ -156,13 +159,6 @@ def remove_hop_by_hop_headers(response):
         if h.lower() in hop_by_hop:
             del response.headers[h]
     return response
-
-
-@app.get("/static/card/<path:rel>")
-def serve_card(rel: str):
-    """牌图资源: card/ 里的 jpeg 直接 serve"""
-    safe = rel.replace("\\", "/").lstrip("/")
-    return send_from_directory(str(CARD_DIR), safe)
 
 
 @app.get("/")
@@ -237,9 +233,22 @@ def build_user_prompt(question: str, spread_name: str, positions: List[Dict], ca
     return head + "\n".join(body_lines) + tail
 
 
+# ============================================================================
+# SSE 反缓冲前导注释 (4KB)
+#   CloudBase Run 的 cbrgw 网关会主动剥离 X-Accel-Buffering 头（Nginx 内部控制头），
+#   导致外层 Nginx 默认 proxy_buffering=on 把整个 SSE 响应缓冲到生成结束，
+#   客户端浏览器期间收不到任何 data 行 → 解读页一直卡在"等待中"。
+#   标准规避手段：在 stream 最开头 yield 一段超过 Nginx proxy_buffer_size(~4KB) 的 SSE 注释，
+#   强制缓冲区立即排空并把后续 chunk 立刻推送给客户端。
+#   SSE 注释以 ":" 开头，浏览器 EventSource / fetch ReadableStream 都会忽略。
+# ============================================================================
+SSE_PREAMBLE = ":" + ("." * 4096) + "\n\n"
+
+
 def _sse_error(msg: str):
     """构造 SSE 格式的错误流（立刻 yield 1 条错误 + 1 条 done）"""
     def gen():
+        yield SSE_PREAMBLE  # ← 先推 4KB 强制排空 CloudBase Nginx 缓冲区
         yield "data: " + json.dumps({"ok": False, "error": msg}, ensure_ascii=False) + "\n\n"
         yield "data: " + json.dumps({"ok": True, "done": True}, ensure_ascii=False) + "\n\n"
     # ⚠ 注意：严禁同时传 mimetype= 和 headers 中的 Content-Type，也不要传 mimetype。
@@ -250,8 +259,11 @@ def _sse_error(msg: str):
         content_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
-            "X-Accel-Buffering": "no",
+            "X-Accel-Buffering": "no",         # 能识别的代理依然生效
             "X-Content-Type-Options": "nosniff",
+            # 显式声明未编码：阻止任何中间层（CDN / Nginx / gzip middleware）
+            # 为了压缩而缓冲整段响应（压缩必须攒够块或读完）。
+            "Content-Encoding": "identity",
         },
     )
 
@@ -263,14 +275,20 @@ def _sse_ok_headers() -> Dict[str, str]:
         "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
         "X-Accel-Buffering": "no",
         "X-Content-Type-Options": "nosniff",
+        "Content-Encoding": "identity",
     }
 
 
 def _stream_glm(user_msg: str, model_id: str):
     """SSE 流式调用智谱；过滤 Z1 的 <think> 标签。返回 text/event-stream 的 data 行。"""
+    # ⚠ 任何分支之前先推 4KB padding：保证 CloudBase/Zeabur 代理缓冲区立刻排空，
+    #   客户端浏览器立刻收到首字节，不会"一直等到模型生成完"才看到内容。
+    yield SSE_PREAMBLE
+
     api_key = os.getenv("ZHIPU_API_KEY")
     if not api_key:
         yield "data: " + json.dumps({"ok": False, "error": "未配置 ZHIPU_API_KEY，请到 Zeabur 后台配置环境变量"}, ensure_ascii=False) + "\n\n"
+        yield "data: " + json.dumps({"ok": True, "done": True}, ensure_ascii=False) + "\n\n"
         return
 
     client = OpenAI(
@@ -291,6 +309,7 @@ def _stream_glm(user_msg: str, model_id: str):
         )
     except Exception as e:  # noqa: BLE001
         yield "data: " + json.dumps({"ok": False, "error": f"API 调用失败: {type(e).__name__}: {e}"}, ensure_ascii=False) + "\n\n"
+        yield "data: " + json.dumps({"ok": True, "done": True}, ensure_ascii=False) + "\n\n"
         return
 
     # ---- Z1 <think> 段剥除（重写为更稳的索引搜索，避免 re non-greedy 在跨 delta 时错过）----
