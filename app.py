@@ -140,6 +140,24 @@ app = Flask(
 )
 
 
+# ============================================================================
+# 全局响应钩子：移除所有违规的 hop-by-hop（逐跳）响应头
+#   - WSGI(PEP3333) + CloudBase/Zeabur 等反向代理环境，Connection/Transfer-Encoding
+#     这类 Header 只能由最外层网关输出，应用层手动设置会被代理判违规 → 500 / 截断响应。
+#   - 一劳永逸：不管以后哪里再手滑加上去，这里统一剥掉。
+# ============================================================================
+@app.after_request
+def remove_hop_by_hop_headers(response):
+    hop_by_hop = {
+        "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+        "te", "trailers", "transfer-encoding", "upgrade",
+    }
+    for h in list(response.headers.keys()):
+        if h.lower() in hop_by_hop:
+            del response.headers[h]
+    return response
+
+
 @app.get("/static/card/<path:rel>")
 def serve_card(rel: str):
     """牌图资源: card/ 里的 jpeg 直接 serve"""
@@ -149,7 +167,10 @@ def serve_card(rel: str):
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    # 手机端浏览器（尤其是微信内嵌 WebView / iOS Safari 老版）遇到缺 charset 的 text/html
+    # 有时会按 application/octet-stream 误判 → 触发"下载一个 html 文件"。显式指定 MIME + charset。
+    html = render_template("index.html")
+    return Response(html, headers={"Content-Type": "text/html; charset=utf-8"})
 
 
 @app.get("/healthz")
@@ -216,7 +237,6 @@ def _sse_error(msg: str):
         headers={
             "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
             "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
             "Content-Type": "text/event-stream; charset=utf-8",
         },
         mimetype="text/event-stream",
@@ -227,7 +247,6 @@ def _sse_ok_headers() -> Dict[str, str]:
     return {
         "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
         "X-Accel-Buffering": "no",
-        "Connection": "keep-alive",
         "Content-Type": "text/event-stream; charset=utf-8",
     }
 
