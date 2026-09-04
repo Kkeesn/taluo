@@ -14,7 +14,7 @@
       <div class="logo">✦</div>
       <div>
         <h1>塔罗 · AI 解读</h1>
-        <p class="sub">GLM 大模型 · 78 张完整牌库 · 多牌阵多模型</p>
+        <p class="sub">由四位古老解读师 · 78 张完整牌库 · 五种经典牌阵</p>
       </div>
     </div>
     <div class="disclaimer">
@@ -22,19 +22,14 @@
     </div>
   </header>
 
-  <main class="main">
-    <!-- 左: 提问面板 -->
-    <section class="panel form-panel">
-      <h2>🔮 来问问塔罗吧</h2>
-
-      <div class="field">
-        <label>你想算什么牌阵？</label>
-        <div id="spread-grid" class="spread-grid"></div>
-      </div>
-
-      <div class="field">
-        <label>选一个解读模型</label>
-        <select id="model-select" class="select"></select>
+  <!-- ========================= Page1: Setup 豆包风居中对话框 ========================= -->
+  <main id="page-setup" class="page-setup">
+    <div class="setup-card">
+      <div class="hero">
+        <div class="orb small"></div>
+        <div class="hero-ic">🔮</div>
+        <h2>来问问塔罗吧</h2>
+        <p class="hero-sub">想清楚要问什么，选一位解读师、一个牌阵，让意念把答案送到你面前。</p>
       </div>
 
       <div class="field">
@@ -44,38 +39,95 @@
         <div class="counter"><span id="q-count">0</span>/500</div>
       </div>
 
-      <button id="draw-btn" class="primary-btn">🎴 洗牌 · 抽牌</button>
-      <button id="reset-btn" class="ghost-btn" hidden>↻ 重来一次</button>
+      <div class="field">
+        <label>选一位解读师（模型）<span class="hint">（显示名按古神拟人名，内部仍调对应 GLM 原模型）</span></label>
+        <div id="model-list" class="model-list"></div>
+      </div>
 
+      <div class="field">
+        <label>你想摆什么牌阵？<span class="hint">（每张牌按塔罗流派规则从大阿尔卡那 / 小阿尔卡那 / 整幅抽）</span></label>
+        <div id="spread-grid" class="spread-grid"></div>
+      </div>
+
+      <button id="focus-btn" class="primary-btn focus" disabled disabled-state>🧘 意念集中</button>
       <div id="status" class="status"></div>
-    </section>
-
-    <!-- 中: 抽牌区 -->
-    <section class="panel cards-panel">
-      <h2 id="cards-title">🎴 请先选择牌阵并抽牌</h2>
-      <div id="cards-area" class="cards-area"></div>
-      <div id="deck-slot" class="deck-slot" hidden>
-        <div class="deck">
-          <div class="card-back"></div>
-        </div>
-        <div class="deck-tip">剩余 <b id="deck-left">78</b> 张</div>
-      </div>
-    </section>
-
-    <!-- 右: 解读区 -->
-    <section class="panel read-panel">
-      <h2>📜 塔罗解读</h2>
-      <div id="reading" class="reading-placeholder">
-        <div class="placeholder">
-          <div class="orb"></div>
-          <p>抽好牌后，点下方按钮让 AI 为你解读</p>
-          <button id="read-btn" class="primary-btn" disabled disabled-state>✨ 请先抽牌</button>
-        </div>
-      </div>
-    </section>
+    </div>
   </main>
-</div>
 
+  <!-- ========================= 过渡层: 粒子 + 同心圆 ========================= -->
+  <div id="transition-overlay" aria-hidden="true">
+    <canvas id="fx-canvas"></canvas>
+    <div class="rings">
+      <div class="ring r1"></div>
+      <div class="ring r2"></div>
+      <div class="ring r3"></div>
+      <div class="ring r4"></div>
+    </div>
+    <div class="fx-caption" id="fx-caption">正在连接你的潜意识…</div>
+  </div>
+
+  <!-- ========================= Page2: 抽牌 (左槽 + 右扇面) ========================= -->
+  <section id="page-pick" class="page hidden">
+    <div class="pick-header">
+      <button id="back-setup" class="ghost-btn sm">← 回到第一步</button>
+      <div class="pick-title">
+        <div class="pick-spread-name" id="pick-spread-name">—</div>
+        <div class="pick-progress" id="pick-progress">—</div>
+      </div>
+      <div class="pick-source-chip" id="pick-source-chip">牌库：整幅</div>
+    </div>
+
+    <div class="picking-layout">
+      <aside id="pick-slots" class="pick-slots"></aside>
+      <section class="pick-right">
+        <div class="pick-meta" id="pick-meta">
+          <h3 id="pick-cur-position">—</h3>
+          <p id="pick-cur-hint">—</p>
+        </div>
+        <div id="fan-container" class="fan-container"></div>
+        <div class="pick-cta">
+          <div class="pick-tip">✨ 每张牌只抽一次，抽完自动进入解读。</div>
+          <button id="btn-start-read" class="primary-btn" disabled disabled-state>📜 请 AI 解读这组牌</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ========================= Page3: 解读 (左缩略 + 右解读) ========================= -->
+  <section id="page-read" class="page hidden">
+    <div class="read-header">
+      <button id="back-pick" class="ghost-btn sm">← 回到第一步</button>
+      <div class="read-title">
+        <span class="chip" id="read-chip-spread">牌阵：—</span>
+        <span class="chip" id="read-chip-model">解读师：—</span>
+        <span class="chip" id="read-chip-elapsed">用时：0s</span>
+      </div>
+      <button id="read-retry-btn" class="ghost-btn sm">🔁 再解读一次</button>
+    </div>
+
+    <div class="reading-layout">
+      <aside id="thumbs" class="thumbs"></aside>
+      <section id="reading" class="reading"></section>
+    </div>
+  </section>
+
+  <!-- ========================= 卡片大图模态 ========================= -->
+  <div id="card-modal" class="card-modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-panel">
+      <button class="modal-close" data-close="1" aria-label="关闭">✕</button>
+      <div class="modal-img-wrap" id="modal-img-wrap">
+        <img id="modal-img" alt="" />
+      </div>
+      <div class="modal-meta">
+        <div class="mm-title" id="modal-title">—</div>
+        <div class="mm-pos" id="modal-pos">—</div>
+        <div class="mm-read" id="modal-read">（该位置的解读段出现在右侧解读区，点这里查看大图）</div>
+      </div>
+    </div>
+  </div>
+
+</div>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

@@ -59,7 +59,7 @@ SPREADS = [
         "count": 1,
         "desc": "快速一问一答，用一张牌给出明确倾向与理由。",
         "positions": [
-            {"label": "答案", "hint": "核心倾向与依据"},
+            {"label": "答案", "hint": "核心倾向与依据", "pickFrom": "Full"},
         ],
     },
     {
@@ -68,9 +68,9 @@ SPREADS = [
         "count": 3,
         "desc": "最经典的时序牌阵，按时间线展开解读因果走向。",
         "positions": [
-            {"label": "过去", "hint": "起因、背景、业力与惯性"},
-            {"label": "现在", "hint": "当前能量、关键局面与你的状态"},
-            {"label": "未来", "hint": "按当下惯性发展可能得到的结果"},
+            {"label": "过去", "hint": "起因、背景、业力与惯性", "pickFrom": "Full"},
+            {"label": "现在", "hint": "当前能量、关键局面与你的状态", "pickFrom": "Full"},
+            {"label": "未来", "hint": "按当下惯性发展可能得到的结果", "pickFrom": "Major"},
         ],
     },
     {
@@ -79,9 +79,9 @@ SPREADS = [
         "count": 3,
         "desc": "问题 → 困难 → 破局路径，适合行动抉择。",
         "positions": [
-            {"label": "现状", "hint": "问题所处的总体局面"},
-            {"label": "挑战", "hint": "你当下最大的阻力或盲区"},
-            {"label": "建议", "hint": "可执行的下一步行动方向"},
+            {"label": "现状", "hint": "问题所处的总体局面", "pickFrom": "Full"},
+            {"label": "挑战", "hint": "你当下最大的阻力或盲区", "pickFrom": "Full"},
+            {"label": "建议", "hint": "可执行的下一步行动方向", "pickFrom": "Major"},
         ],
     },
     {
@@ -90,11 +90,11 @@ SPREADS = [
         "count": 5,
         "desc": "由心到果的五维剖析，适合复杂关系或选择。",
         "positions": [
-            {"label": "核心 (心)", "hint": "问题的本质与你的内心"},
-            {"label": "现状 (面)", "hint": "外在客观表现与可观察事实"},
-            {"label": "根源 (根)", "hint": "导致现状的深层原因"},
-            {"label": "影响 (枝)", "hint": "相关人物、事件与环境因素"},
-            {"label": "结果 (果)", "hint": "最终走向或建议结论"},
+            {"label": "核心 (心)", "hint": "问题的本质与你的内心", "pickFrom": "Major"},
+            {"label": "现状 (面)", "hint": "外在客观表现与可观察事实", "pickFrom": "Minor"},
+            {"label": "根源 (根)", "hint": "导致现状的深层原因", "pickFrom": "Major"},
+            {"label": "影响 (枝)", "hint": "相关人物、事件与环境因素", "pickFrom": "Minor"},
+            {"label": "结果 (果)", "hint": "最终走向或建议结论", "pickFrom": "Major"},
         ],
     },
     {
@@ -103,23 +103,28 @@ SPREADS = [
         "count": 7,
         "desc": "覆盖现状、挑战、过去、未来、建议、外部、结果。",
         "positions": [
-            {"label": "① 当前局面", "hint": "问题核心现况"},
-            {"label": "② 挑战/跨越", "hint": "横在面前的障碍或助力"},
-            {"label": "③ 潜意识根源", "hint": "未察觉的深层动因"},
-            {"label": "④ 近期过去", "hint": "对现在仍有影响的最近发生"},
-            {"label": "⑤ 近期未来", "hint": "接下来的短期走向"},
-            {"label": "⑥ 外部环境/他人", "hint": "关系他人与环境能量"},
-            {"label": "⑦ 最终结果", "hint": "综合能量的最终落点"},
+            {"label": "① 当前局面", "hint": "问题核心现况", "pickFrom": "Major"},
+            {"label": "② 挑战/跨越", "hint": "横在面前的障碍或助力", "pickFrom": "Major"},
+            {"label": "③ 潜意识根源", "hint": "未察觉的深层动因", "pickFrom": "Major"},
+            {"label": "④ 近期过去", "hint": "对现在仍有影响的最近发生", "pickFrom": "Full"},
+            {"label": "⑤ 近期未来", "hint": "接下来的短期走向", "pickFrom": "Full"},
+            {"label": "⑥ 外部环境/他人", "hint": "关系他人与环境能量", "pickFrom": "Full"},
+            {"label": "⑦ 最终结果", "hint": "综合能量的最终落点", "pickFrom": "Major"},
         ],
     },
 ]
 
 # ============= 模型选项 =============
+# 注意：id 必须是智谱真实模型名（后端调 API 用）；alias/personality 仅前端拟人名展示用。
 MODELS = [
-    {"id": "glm-4-flash-250414",   "name": "GLM-4-Flash (快 · 稳定)", "speed": "极快", "pick": "推荐日常"},
-    {"id": "glm-4.6v-flash",       "name": "GLM-4.6V-Flash (均衡)",    "speed": "快",   "pick": "综合首选"},
-    {"id": "glm-4.7-flash",        "name": "GLM-4.7-Flash (强 · 长)",   "speed": "慢",   "pick": "深度解读"},
-    {"id": "glm-z1-flash",         "name": "GLM-Z1-Flash (推理最快)",   "speed": "极快", "pick": "专业分析"},
+    {"id": "glm-4-flash-250414",   "name": "GLM-4-Flash (快 · 稳定)", "speed": "极快", "pick": "推荐日常",
+     "alias": "快语者 · 阿伽",  "personality": "话快、准、稳，擅长日常问答秒出结论。"},
+    {"id": "glm-4.6v-flash",       "name": "GLM-4.6V-Flash (均衡)",    "speed": "快",   "pick": "综合首选",
+     "alias": "叙梦者 · 薇菈",  "personality": "温柔而理性，最会把牌意编织成故事般的解读。"},
+    {"id": "glm-4.7-flash",        "name": "GLM-4.7-Flash (强 · 长)",   "speed": "慢",   "pick": "深度解读",
+     "alias": "慢语者 · 默里斯", "personality": "慢吞吞但字字珠玑，深度长文与复杂牌阵的专家。"},
+    {"id": "glm-z1-flash",         "name": "GLM-Z1-Flash (推理最快)",   "speed": "极快", "pick": "专业分析",
+     "alias": "演算师 · 绮莉丝", "personality": "推理速度极快，擅长拆解因果逻辑与内在联系。"},
 ]
 
 
@@ -171,9 +176,16 @@ SYSTEM_PROMPT = (
     "你是专业塔罗解读师，风格温和理性，富有同理心但不制造焦虑。"
     "【必读规则】1. 开头必须写一行：【塔罗仅为心理隐喻娱乐，不可作为重大决策依据】。"
     "2. 严格依据用户提供的牌阵和每张牌的位置（正位/逆位）进行解读，不要凭空换牌或添加未抽到的牌。"
-    "3. 解读结构：①总体结论（简短一句话点明）；②逐张牌分位置解读（小标题，关联对应位置意义）；③牌之间的关系与呼应；④具体行动建议（至少2条）；⑤结束一句温暖鼓励。"
-    "4. 分段落加小标题，用简洁中文，不要冗长堆比喻。"
-    "5. Yes/No 牌阵必须在开头先明确写出：「【倾向】是/否/中性」三选一，再给理由和结论。"
+    "3. 解读结构必须严格按位置分段，每一个位置的解读**必须且只能**以 Markdown 二级标题行开头，"
+    "标题格式固定为：「## N. 位置名（牌名·正位/逆位）」，"
+    "其中 N 是从 1 开始的位置序号（严格对应所给 positions 顺序），位置名、牌名与正逆位都必须照抄用户提供的原文，不要错字漏字，不要自改。"
+    "每个位置标题之后的正文，**只写该位置**对应的牌义、该位置与问题的关联分析，严禁混入其他位置的内容。"
+    "在最后一张牌的解读段之后，再写一个不带编号的总结段，标题行使用：「## 总体结论 · 关系呼应 · 行动建议 · 温暖鼓励」，"
+    "正文必须覆盖四件事：① 牌与牌之间的关系与内在呼应（谁助推谁、谁是冲突点）；"
+    "② 具体可执行的行动建议（至少 2 条，要可落地不虚空）；③ 一句话温暖鼓励；"
+    "④ 若是 Yes/No 牌阵，在总体结论开头第一句必须**明确写出**：「【倾向】是/否/中性」三选一，再给理由和结论。"
+    "4. 语言简洁分段落、中文表达自然，不要堆比喻不要冗长，不要使用 HTML、不要在标题之外再写编号序号。"
+    "5. 除了上面规定的「## …」标题行，不要出现任何其他以 # 号开头的行，也不要省略或合并任何一个位置的标题段落。"
 )
 
 
@@ -247,8 +259,26 @@ def _stream_glm(user_msg: str, model_id: str):
         yield "data: " + json.dumps({"ok": False, "error": f"API 调用失败: {type(e).__name__}: {e}"}, ensure_ascii=False) + "\n\n"
         return
 
-    buf = ""  # 用于处理 Z1 的 <think> 块 (可能被分片)
-    think_re = re.compile(r"<think>[\s\S]*?</think>")
+    # ---- Z1 <think> 段剥除（重写为更稳的索引搜索，避免 re non-greedy 在跨 delta 时错过）----
+    buf = ""
+    OPEN = "<think"
+    CLOSE = "</think>"
+
+    def strip_complete(buf: str):
+        # 重复剥离所有完整 <thinkX>…</think>（允许 <think 后有 空格/换行/> 等，直到下一个 > 作为开始边界）
+        while True:
+            o = buf.find(OPEN)
+            if o < 0:
+                return buf
+            # 找到 open-tag 末尾的 >
+            gt = buf.find(">", o + len(OPEN))
+            if gt < 0:
+                return buf
+            c = buf.find(CLOSE, gt + 1)
+            if c < 0:
+                return buf
+            buf = buf[:o] + buf[c + len(CLOSE):]
+
     for event in stream:
         if not event.choices:
             continue
@@ -259,11 +289,15 @@ def _stream_glm(user_msg: str, model_id: str):
         if not text:
             continue
         buf += text
-        # 剥离完整的 <think>...</think>
-        while re.search(r"</think>", buf):
-            buf = think_re.sub("", buf, count=1)
-        # 如果 buf 里残留未闭合的 <think>，先不吐出，直到闭合
-        if re.search(r"<think(>|$)", buf) and "</think>" not in buf:
+        # 先剥除完整闭合的 think 段
+        buf = strip_complete(buf)
+        # 现在只看：是否残留未闭合的 <think（后面还有 > 但没有 </think>）
+        o = buf.find(OPEN)
+        if o >= 0 and buf.find(">", o + len(OPEN)) >= 0 and buf.find(CLOSE, o) < 0:
+            # 有 open 起始 + open 完成闭合, 但还没有 close → 继续攒
+            continue
+        # 若存在 "<think" 但后续还没有出现 ">"（跨 delta 切开了 open tag 本身），也继续攒
+        if o >= 0 and buf.find(">", o + len(OPEN)) < 0:
             continue
         if buf:
             payload = json.dumps({"ok": True, "text": buf}, ensure_ascii=False)
@@ -271,7 +305,11 @@ def _stream_glm(user_msg: str, model_id: str):
             buf = ""
     # 收尾
     if buf:
-        buf = think_re.sub("", buf)
+        buf = strip_complete(buf)
+        # 最后仍有未闭合 think 段 → 只取 <think 之前的文本
+        o = buf.find(OPEN)
+        if o >= 0:
+            buf = buf[:o]
         if buf:
             yield "data: " + json.dumps({"ok": True, "text": buf}, ensure_ascii=False) + "\n\n"
     yield "data: " + json.dumps({"ok": True, "done": True}, ensure_ascii=False) + "\n\n"
