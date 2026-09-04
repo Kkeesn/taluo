@@ -1,0 +1,6 @@
+激活环境：
+.venv\Scripts\activate
+装包命令：
+uv pip install 包名
+运行py文件：
+uv run python glm.py
