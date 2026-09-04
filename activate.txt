@@ -4,3 +4,23 @@
 uv pip install 包名
 运行py文件：
 uv run python glm.py
+
+本地 CLI（Windows）
+本地装依赖要交叉取 Linux 包，比较折腾，建议优先用上面的 CI。若要本地试：
+PowerShell
+运行
+npm install -g @cloudbase/cli
+tcb login                      # 浏览器授权
+# 组装 pkg/ 并装入 Linux/py3.10 依赖
+uv pip install -r requirements.txt --target pkg --python-platform x86_64-unknown-linux-gnu --python-version 3.10
+Copy-Item app.py,requirements.txt,scf_bootstrap pkg\
+Copy-Item -Recurse -Force static,templates pkg\
+# 注意 pkg\scf_bootstrap 必须是 LF 换行
+tcb fn deploy taluo --force --yes
+本地部署不会注入 Key，部署后到控制台 函数配置 → 环境变量 填 ZHIPU_API_KEY（CI 部署则自动注入）。
+验证
+Bash
+运行
+curl -i https://<HTTP访问路径>/healthz   # 期望 ok:true cards:78 has_key:true
+浏览器打开根路径应直接渲染首页（不是下载 html）；若 has_key:false 查环境变量，若解读被截断把执行超时确认成 300s。
+
