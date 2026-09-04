@@ -169,7 +169,11 @@ textarea { resize: vertical; min-height: 108px; line-height: 1.6; }
   border-radius: 12px;
 }
 .card.flipped .card-inner { transform: rotateY(180deg); }
-.card.reversed .card-face { transform: rotateY(180deg) rotate(180deg); }
+/* 逆位时只翻转图片，不翻转底部的牌名/正逆位标签 */
+.card.reversed .card-face img {
+  transform: rotate(180deg);
+  transform-origin: center center;
+}
 .card-face, .card-back-face {
   position: absolute; inset: 0;
   border-radius: 12px; overflow: hidden;

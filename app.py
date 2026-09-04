@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from dotenv import load_dotenv
-from flask import Flask, Response, jsonify, render_template, request, send_from_directory
+from flask import Flask, Response, jsonify, render_template, request, send_from_directory, stream_with_context
 from openai import OpenAI
 
 load_dotenv()
@@ -194,6 +194,32 @@ def build_user_prompt(question: str, spread_name: str, positions: List[Dict], ca
     return head + "\n".join(body_lines) + tail
 
 
+def _sse_error(msg: str):
+    """构造 SSE 格式的错误流（立刻 yield 1 条错误 + 1 条 done）"""
+    def gen():
+        yield "data: " + json.dumps({"ok": False, "error": msg}, ensure_ascii=False) + "\n\n"
+        yield "data: " + json.dumps({"ok": True, "done": True}, ensure_ascii=False) + "\n\n"
+    return Response(
+        stream_with_context(gen()),
+        headers={
+            "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream; charset=utf-8",
+        },
+        mimetype="text/event-stream",
+    )
+
+
+def _sse_ok_headers() -> Dict[str, str]:
+    return {
+        "Cache-Control": "no-cache, no-transform, must-revalidate, max-age=0",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+        "Content-Type": "text/event-stream; charset=utf-8",
+    }
+
+
 def _stream_glm(user_msg: str, model_id: str):
     """SSE 流式调用智谱；过滤 Z1 的 <think> 标签。返回 text/event-stream 的 data 行。"""
     api_key = os.getenv("ZHIPU_API_KEY")
@@ -263,23 +289,29 @@ def api_interpret():
     # ---- 校验 ----
     spread = next((s for s in SPREADS if s["id"] == spread_id), None)
     if spread is None:
-        return jsonify({"ok": False, "error": f"未知牌阵: {spread_id}"}), 400
+        return _sse_error(f"未知牌阵: {spread_id}")
     if next((m for m in MODELS if m["id"] == model_id), None) is None:
-        return jsonify({"ok": False, "error": f"未知模型: {model_id}"}), 400
+        return _sse_error(f"未知模型: {model_id}")
     if not question:
-        return jsonify({"ok": False, "error": "请输入你想问的问题"}), 400
+        return _sse_error("请输入你想问的问题（至少 2 个字）")
     if len(cards_arg) != spread["count"]:
-        return jsonify({"ok": False, "error": f"牌阵需要 {spread['count']} 张牌，收到 {len(cards_arg)}"}), 400
-
+        return _sse_error(f"牌阵需要 {spread['count']} 张牌，收到 {len(cards_arg)}")
     # 校验每张牌真实存在
     for c in cards_arg:
         if c.get("name") not in CARDS_BY_NAME:
-            return jsonify({"ok": False, "error": f"牌库中找不到: {c.get('name')}"}), 400
+            return _sse_error(f"牌库中找不到: {c.get('name')}")
     positions = positions_arg if len(positions_arg) == spread["count"] else spread["positions"]
 
     user_msg = build_user_prompt(question, spread["name"], positions, cards_arg)
     print(f"[interpret] spread={spread_id} model={model_id} q={question[:24]} cards={[c['name'] for c in cards_arg]}", flush=True)
-    return Response(_stream_glm(user_msg, model_id), mimetype="text/event-stream")
+    # SSE 流式响应必须：
+    # 1) stream_with_context: 保留请求上下文直到生成器耗尽（WSGI/Waitress/Zeabur 需要）
+    # 2) 加 headers 禁止任何中间层/代理/nginx buffer，否则前端会看到"一直不输出直到最后一次性吐"
+    return Response(
+        stream_with_context(_stream_glm(user_msg, model_id)),
+        headers=_sse_ok_headers(),
+        mimetype="text/event-stream",
+    )
 
 
 if __name__ == "__main__":
